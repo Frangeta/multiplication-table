@@ -552,6 +552,63 @@
     100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
   }
 
+
+  /* ===== WRONG ANSWER MODAL ===== */
+  .wrong-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(10px);
+    z-index: 3000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .wrong-overlay.show { opacity: 1; pointer-events: all; }
+  .wrong-modal {
+    background: white; border-radius: 36px;
+    padding: 40px 36px 36px; text-align: center;
+    max-width: 460px; width: 92%;
+    box-shadow: 0 40px 100px rgba(255,80,80,0.5);
+    border: 5px solid #FFCECE;
+    transform: scale(0.4) translateY(80px);
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .wrong-overlay.show .wrong-modal { transform: scale(1) translateY(0); }
+  .wrong-icon { font-size: 5rem; display: block; margin-bottom: 8px; }
+  .wrong-label { font-family: "Fredoka One", cursive; font-size: 1.35rem; color: var(--primary); margin-bottom: 22px; }
+  .wrong-equation-box {
+    background: linear-gradient(145deg, #FF6B6B 0%, #FF3333 50%, #FF8E53 100%);
+    border-radius: 28px; padding: 28px 24px 32px; margin-bottom: 22px;
+    box-shadow: 0 12px 40px rgba(255,80,80,0.45);
+  }
+  .wrong-eq-question {
+    font-family: "Fredoka One", cursive;
+    font-size: clamp(2rem, 8vw, 3.2rem);
+    color: rgba(255,255,255,0.95); display: block;
+    letter-spacing: 4px; margin-bottom: 4px;
+  }
+  .wrong-eq-equals { font-family: "Fredoka One", cursive; font-size: 2rem; color: rgba(255,255,255,0.7); display: block; margin-bottom: 4px; }
+  .wrong-eq-answer {
+    font-family: "Fredoka One", cursive;
+    font-size: clamp(5.5rem, 20vw, 8.5rem);
+    color: #FFE66D;
+    text-shadow: 5px 8px 0 rgba(0,0,0,0.2);
+    display: block; line-height: 1;
+    animation: bigReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both;
+  }
+  .wrong-hint { font-size: 1rem; font-weight: 800; color: #AAA; margin-bottom: 28px; }
+  .wrong-next-btn {
+    font-family: "Fredoka One", cursive; font-size: 1.4rem;
+    padding: 18px 0; width: 100%;
+    background: linear-gradient(135deg, var(--secondary), #3ab5ad);
+    color: white; border: none; border-radius: 50px; cursor: pointer;
+    box-shadow: 0 6px 0 rgba(78,205,196,0.45); transition: all 0.2s; position: relative; top: 0;
+  }
+  .wrong-next-btn:hover { transform: translateY(-3px); }
+  .wrong-next-btn:active { top: 6px; box-shadow: none; }
+  @keyframes headShake { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-12px) rotate(-7deg);} 40%{transform:translateX(12px) rotate(7deg);} 60%{transform:translateX(-8px);} 80%{transform:translateX(8px);} }
+  @keyframes bigReveal { from{opacity:0;transform:scale(0.2) rotate(-15deg);} 70%{transform:scale(1.12) rotate(3deg);} to{opacity:1;transform:scale(1) rotate(0);} }
+
   /* Responsive */
   @media (max-width: 500px) {
     .diff-grid { grid-template-columns: repeat(3, 1fr); }
@@ -562,6 +619,22 @@
 </style>
 </head>
 <body>
+
+
+<!-- WRONG ANSWER MODAL -->
+<div class="wrong-overlay" id="wrong-overlay">
+  <div class="wrong-modal">
+    <span class="wrong-icon" id="wrong-icon">😅</span>
+    <div class="wrong-label" id="wrong-label">¡Casi! La respuesta correcta es...</div>
+    <div class="wrong-equation-box">
+      <span class="wrong-eq-question" id="modal-question">3 x 7</span>
+      <span class="wrong-eq-equals">=</span>
+      <span class="wrong-eq-answer" id="modal-answer">21</span>
+    </div>
+    <div class="wrong-hint" id="modal-hint">Suma 3 en total 7 veces</div>
+    <button class="wrong-next-btn" onclick="closeWrongModal()">¡Entendido! Siguiente →</button>
+  </div>
+</div>
 
 <div class="app">
   <!-- HEADER -->
@@ -901,10 +974,11 @@ function startTimer() {
       clearInterval(timerInterval);
       if (!answered) {
         answered = true;
-        showToast('⏰ ¡Tiempo!', 'bad');
         wrongs++;
         score = Math.max(0, score - 1);
-        setTimeout(nextQuestion, 1200);
+        document.getElementById('score-display').textContent = score;
+        document.getElementById('wrong-display').textContent = wrongs;
+        showWrongModal(questions[currentQ], true);
       }
     }
   }, 1000);
@@ -928,7 +1002,6 @@ function handleAnswer(correct, btn, rightAnswer, grid) {
   answered = true;
   clearInterval(timerInterval);
 
-  // disable all
   grid.querySelectorAll('.option-btn').forEach(b => {
     b.disabled = true;
     if (parseInt(b.textContent) === rightAnswer) b.classList.add('correct');
@@ -937,41 +1010,56 @@ function handleAnswer(correct, btn, rightAnswer, grid) {
   if (correct) {
     btn.classList.add('correct');
     score += 3;
+    document.getElementById('score-display').textContent = score;
     showToast('¡Correcto! +3 🎉', 'good');
     spawnConfetti();
+    setTimeout(nextQuestion, 1400);
   } else {
     btn.classList.add('wrong');
     wrongs++;
     score = Math.max(0, score - 1);
-    showToast(`La respuesta era ${rightAnswer} 😅`, 'bad');
+    document.getElementById('score-display').textContent = score;
+    document.getElementById('wrong-display').textContent = wrongs;
+    showWrongModal(questions[currentQ], false);
   }
-
-  document.getElementById('score-display').textContent = score;
-  document.getElementById('wrong-display').textContent = wrongs;
-  setTimeout(nextQuestion, 1500);
 }
 
 function handleAnswerInput(correct, inp, rightAnswer) {
   if (answered) return;
   answered = true;
   clearInterval(timerInterval);
-
   inp.disabled = true;
   if (correct) {
     inp.classList.add('correct');
     score += 3;
+    document.getElementById('score-display').textContent = score;
     showToast('¡Correcto! +3 🎉', 'good');
     spawnConfetti();
+    setTimeout(nextQuestion, 1400);
   } else {
     inp.classList.add('wrong');
     wrongs++;
     score = Math.max(0, score - 1);
-    showToast(`Era ${rightAnswer} 😅`, 'bad');
+    document.getElementById('score-display').textContent = score;
+    document.getElementById('wrong-display').textContent = wrongs;
+    showWrongModal(questions[currentQ], false);
   }
+}
 
-  document.getElementById('score-display').textContent = score;
-  document.getElementById('wrong-display').textContent = wrongs;
-  setTimeout(nextQuestion, 1500);
+function showWrongModal(q, isTimeout) {
+  document.getElementById('modal-question').textContent = q.a + ' x ' + q.b;
+  document.getElementById('modal-answer').textContent = q.answer;
+  document.getElementById('wrong-icon').textContent = isTimeout ? '⏰' : '😅';
+  document.getElementById('wrong-label').textContent = isTimeout
+    ? '⏰ ¡Se acabó el tiempo! La respuesta era...'
+    : '😅 ¡Casi! La respuesta correcta es...';
+  document.getElementById('modal-hint').textContent = '💡 ' + q.a + ' sumado ' + q.b + ' veces = ' + q.answer;
+  document.getElementById('wrong-overlay').classList.add('show');
+}
+
+function closeWrongModal() {
+  document.getElementById('wrong-overlay').classList.remove('show');
+  setTimeout(nextQuestion, 300);
 }
 
 function nextQuestion() {
